@@ -26,6 +26,7 @@
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
+#include "ns3/flow-monitor-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-nix-vector-helper.h"
@@ -154,16 +155,22 @@ int main(int argc, char * argv[]) {
         }
     }
 
+    const double duration = 3.0;
+
     ApplicationContainer apps = source.Install (clientNodes);
     apps.Start (Seconds (0.0));
-    apps.Stop (Seconds (3.0));
+    apps.Stop (Seconds (duration));
 
     PacketSinkHelper sink = PacketSinkHelper ("ns3::TcpSocketFactory",
         InetSocketAddress (Ipv4Address::GetAny (), port)
     );
     ApplicationContainer sinkApps = sink.Install (randomServerNode);
     sinkApps.Start (Seconds (0.0));
-    sinkApps.Stop (Seconds (3.0));
+    sinkApps.Stop (Seconds (duration));
+
+    // 8. Install FlowMonitor on all nodes
+    FlowMonitorHelper flowmon;
+    Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
 
     // ------------------------------------------------------------
     // -- Run the simulation
@@ -173,6 +180,29 @@ int main(int argc, char * argv[]) {
     Simulator::Run ();
     Simulator::Destroy ();
     NS_LOG_INFO ("Done.");
+
+    // 10. Print per flow statistics
+    monitor->CheckForLostPackets ();
+    Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
+    FlowMonitor::FlowStatsContainer stats = monitor->GetFlowStats ();
+    for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i){
+        // first 2 FlowIds are for ECHO apps, we don't want to display them
+        //
+        // Duration for throughput measurement is 9.0 seconds, since
+        //   StartTime of the OnOffApplication is at about "second 1"
+        // and
+        //   Simulator::Stops at "second 10".
+        if (i->first > 2) {
+            Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
+            std::cout << "Flow " << i->first - 2 << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
+            std::cout << "  Tx Packets: " << i->second.txPackets << "\n";
+            std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";
+            std::cout << "  TxOffered:  " << i->second.txBytes * 8.0 / duration / 1000 / 1000  << " Mbps\n";
+            std::cout << "  Rx Packets: " << i->second.rxPackets << "\n";
+            std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";
+            std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / duration / 1000 / 1000  << " Mbps\n";
+        }
+    }
 
     Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps.Get (0));
     std::cout << "Total Bytes Received: " << sink1->GetTotalRx () << std::endl;

@@ -26,6 +26,7 @@
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/internet-module.h"
+#include "ns3/flow-monitor-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/applications-module.h"
 #include "ns3/ipv4-nix-vector-helper.h"
@@ -162,6 +163,13 @@ int main(int argc, char * argv[]) {
     sinkApps.Start (Seconds (0.0));
     sinkApps.Stop (Seconds (duration));
 
+    // 8. Install FlowMonitor on all nodes
+    FlowMonitorHelper flowmon;
+    Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
+    // monitor->SetAttribute("DelayBinWidth", DoubleValue(0.001));
+    // monitor->SetAttribute("JitterBinWidth", DoubleValue(0.001));
+    // monitor->SetAttribute("PacketSizeBinWidth", DoubleValue(20));
+
     // ------------------------------------------------------------
     // -- Run the simulation
     // --------------------------------------------
@@ -171,7 +179,34 @@ int main(int argc, char * argv[]) {
     Simulator::Destroy ();
     NS_LOG_INFO ("Done.");
 
-    // Ptr<PacketSink> sink1 = DynamicCast<PacketSink> (sinkApps.Get(0));
+    // 10. Print per flow statistics
+    monitor->CheckForLostPackets ();
+    Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
+    FlowMonitor::FlowStatsContainer stats = monitor->GetFlowStats ();
+    for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i){
+        // first 2 FlowIds are for ECHO apps, we don't want to display them
+        //
+        // Duration for throughput measurement is 9.0 seconds, since
+        //   StartTime of the OnOffApplication is at about "second 1"
+        // and
+        //   Simulator::Stops at "second 10".
+        if (i->first > 2) {
+            Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
+            std::cout << "Flow " << i->first - 2 << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
+            std::cout << "  Tx Packets: " << i->second.txPackets << "\n";
+            std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";
+            std::cout << "  TxOffered:  " << i->second.txBytes * 8.0 / duration / 1000 / 1000  << " Mbps\n";
+            std::cout << "  Rx Packets: " << i->second.rxPackets << "\n";
+            std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";
+            //std::cout << "  Lost Packets: " << flow->second.lostPackets << endl;
+            //std::cout << "  Pkt Lost Ratio: "
+            //          << ((double)flow->second.txPackets-(double)flow->second.rxPackets)/(double)flow->second.txPackets
+            //          << endl;
+            std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / duration / 1000 / 1000  << " Mbps\n";
+            //std::cout << "  Mean{Delay}: " << (flow->second.delaySum.GetSeconds()/flow->second.rxPackets) << endl;
+            //std::cout << "  Mean{Jitter}: " << (flow->second.jitterSum.GetSeconds()/(flow->second.rxPackets)) << endl;
+        }
+    }
 
     long int sum = 0;
     ApplicationContainer::Iterator it;
