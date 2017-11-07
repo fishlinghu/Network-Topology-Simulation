@@ -173,6 +173,15 @@ int main(int argc, char * argv[]) {
     uint32_t maxBytes = 0;
     int total_node_num = nodes.GetN();
     int half_server_num = (total_node_num - starting_server_id) / 2;
+
+    /*
+    std::cout << "Node id <--> Addr Mapping\n";
+    for (i = 0; i < total_node_num; ++i) {
+        Ptr<Ipv4> ipv4Server = nodes.Get(i)->GetObject<Ipv4> ();
+        std::cout << i << ": " << ipv4Server->GetAddress(1,0).GetLocal() << "\n";
+    }
+    */
+
     //std::cout << "Sender: ";
     // first half are client nodes
     for ( i = starting_server_id; i < starting_server_id + half_server_num; ++i ){
@@ -234,7 +243,7 @@ int main(int argc, char * argv[]) {
         //   StartTime of the OnOffApplication is at about "second 1"
         // and
         //   Simulator::Stops at "second 10".
-        if (i->first > 2) {
+        //if (i->first > 2) {
             Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
             std::cout << "Flow " << i->first - 2 << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
             std::cout << "  Tx Packets: " << i->second.txPackets << "\n";
@@ -249,7 +258,7 @@ int main(int argc, char * argv[]) {
             std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / duration / 1000 / 1000  << " Mbps\n";
             //std::cout << "  Mean{Delay}: " << (flow->second.delaySum.GetSeconds()/flow->second.rxPackets) << endl;
             //std::cout << "  Mean{Jitter}: " << (flow->second.jitterSum.GetSeconds()/(flow->second.rxPackets)) << endl;
-        }
+        //}
     }
 
     long int sum = 0;
