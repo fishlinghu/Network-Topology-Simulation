@@ -41,6 +41,41 @@ NS_LOG_COMPONENT_DEFINE("Topology Read and Throughput Testing");
 
 static std::list < unsigned int > data;
 
+// node ID starting from a number to the end represents a server
+int getStartingServerID(std::string input) {
+    std::map<int, int> degree_counter;
+    std::ifstream fs;
+    int node_a, node_b;
+    // read in two nodes id line by line
+    // count the degree of each node
+    fs.open(input, std::ifstream::in);
+    while (fs >> node_a >> node_b) {
+        if (degree_counter.count(node_a) == 0) {
+            degree_counter[node_a] = 1;
+        } else {
+            ++degree_counter[node_a];
+        }
+
+        if (degree_counter.count(node_b) == 0) {
+            degree_counter[node_b] = 1;
+        } else {
+            ++degree_counter[node_b];
+        }
+    }
+    fs.close();
+
+    // iterate through the map, nodes with degree = 1 are servers
+    int min_index = -1;
+    for (std::map<int,int>::iterator it=degree_counter.begin(); it!=degree_counter.end(); ++it) {
+        if (it->second == 1) {
+            if (min_index == -1 || min_index > it->first) {
+                min_index = it->first;
+            }
+        }
+    }
+    return min_index;
+}
+
 // ----------------------------------------------------------------------
 // -- main
 // ----------------------------------------------
@@ -48,6 +83,8 @@ int main(int argc, char * argv[]) {
 
     std::string format("Orbis");
     std::string input("src/topology-read/examples/Orbis_toposample.txt");
+    double duration = 3.0;
+    std::string data_rate("0.5Mbps");
 
     // Set up command line parameters used to control the experiment.
     CommandLine cmd;
@@ -55,12 +92,16 @@ int main(int argc, char * argv[]) {
         format);
     cmd.AddValue("input", "Name of the input file.",
         input);
+    cmd.AddValue("duration", "Duration of the test in second (double)",
+        duration);
+    cmd.AddValue("dataRate", "Data rate of links", data_rate),
     cmd.Parse(argc, argv);
 
     // ------------------------------------------------------------
     // -- Read topology data.
     // --------------------------------------------
-
+    // std::cout << "Server starts from idx=" << getStartingServerID(input) << "\n";
+    const int starting_server_id = getStartingServerID(input);
     // Pick a topology reader based in the requested format.
     TopologyReaderHelper topoHelp;
     topoHelp.SetFileName(input);
@@ -110,7 +151,7 @@ int main(int argc, char * argv[]) {
     for (i = 0; i < totlinks; ++i){
         // p2p.SetChannelAttribute ("Delay", TimeValue(MilliSeconds(weight[i])));
         p2p.SetChannelAttribute ("Delay", StringValue ("2ms"));
-        p2p.SetDeviceAttribute ("DataRate", StringValue ("0.5Mbps"));
+        p2p.SetDeviceAttribute ("DataRate", StringValue (data_rate));
         ndc[i] = p2p.Install (nc[i]);
     }
 
@@ -130,13 +171,14 @@ int main(int argc, char * argv[]) {
     uint16_t port = 9;  // well-known echo port number
     // Set the amount of data to send in bytes.  Zero is unlimited.
     uint32_t maxBytes = 0;
-    const double duration = 3.0;
-    int half_node_num = nodes.GetN() / 2;
-
+    int total_node_num = nodes.GetN();
+    int half_server_num = (total_node_num - starting_server_id) / 2;
+    //std::cout << "Sender: ";
     // first half are client nodes
-    for ( i = 0; i < half_node_num; ++i ){
+    for ( i = starting_server_id; i < starting_server_id + half_server_num; ++i ){
+        //std::cout << "," << i;
         Ptr<Node> client_node = nodes.Get(i);
-        Ptr<Node> server_node = nodes.Get(i + half_node_num);
+        Ptr<Node> server_node = nodes.Get(i + half_server_num);
         Ptr<Ipv4> ipv4Server = server_node->GetObject<Ipv4> ();
         Ipv4InterfaceAddress iaddrServer = ipv4Server->GetAddress(1,0);
         Ipv4Address ipv4AddrServer = iaddrServer.GetLocal();
@@ -149,12 +191,14 @@ int main(int argc, char * argv[]) {
         apps.Start (Seconds (0.0));
         apps.Stop (Seconds (duration));
     }
-
+    //std::cout << "\nReceiver: ";
     // second half are server nodes
     NodeContainer serverNodes;
-    for ( ; i < half_node_num * 2; ++i) {
+    for ( ; i < total_node_num; ++i) {
+        //std::cout << "," << i;
         serverNodes.Add (nodes.Get(i));
     }
+    //std::cout << "\n";
 
     PacketSinkHelper sink = PacketSinkHelper ("ns3::TcpSocketFactory",
         InetSocketAddress (Ipv4Address::GetAny (), port)
