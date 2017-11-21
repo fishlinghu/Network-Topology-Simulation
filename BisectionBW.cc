@@ -40,6 +40,67 @@ using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("Topology Read and Throughput Testing");
 
 static std::list < unsigned int > data;
+std::vector<int> link_throughput;
+
+int getNodeIdx (std::string context) {
+    // example input:
+    // /NodeList/79/DeviceList/3/$ns3::PointToPointNetDevice/TxQueue/Dequeue
+    int slash_counter = 0;
+    int i = 0;
+    while (slash_counter < 2) {
+        if (context[i] == '/') {
+            ++slash_counter;
+        }
+        ++i;
+    }
+    // now pointer i is at the first digit
+    int node_idx = 0;
+    while (slash_counter < 3) {
+        if (context[i] == '/') {
+            ++slash_counter;
+        } else {
+            node_idx = node_idx * 10 + (context[i] - 48);
+        }
+        ++i;
+    }
+    return node_idx;
+}
+
+void DevRxTrace (std::string context, Ptr<const Packet> p) {
+    // std::cout << context << std::endl;
+    int node_idx = getNodeIdx(context);
+    // std::cout << " Node idx: " << node_idx << std::endl;
+    // std::cout << " RX p: " << p->GetSize() << std::endl;
+    link_throughput[node_idx] += p->GetSize();
+}
+
+void showNodeAddrMapping(NodeContainer nodes, int total_node_num) {
+    std::cout << "Node id <--> Addr Mapping\n";
+    for ( int i = 0; i < total_node_num; ++i) {
+        Ptr<Ipv4> ipv4Server = nodes.Get(i)->GetObject<Ipv4> ();
+        std::cout << i << ": " << ipv4Server->GetAddress(1,0).GetLocal() << "\n";
+    }
+}
+
+void showSenderReceiverMapping(
+    NodeContainer nodes,
+    int starting_server_id,
+    int half_server_num
+) {
+    std::cout << "Sender addr <--> Receiver Addr Mapping\n";
+    for ( int i = starting_server_id; i < starting_server_id + half_server_num; ++i ){
+        Ptr<Node> client_node = nodes.Get(i);
+        Ptr<Node> server_node = nodes.Get(i + half_server_num);
+        Ptr<Ipv4> ipv4Client = client_node->GetObject<Ipv4> ();
+        Ptr<Ipv4> ipv4Server = server_node->GetObject<Ipv4> ();
+        Ipv4InterfaceAddress iaddrClient = ipv4Client->GetAddress(1,0);
+        Ipv4InterfaceAddress iaddrServer = ipv4Server->GetAddress(1,0);
+        Ipv4Address ipv4AddrClient = iaddrClient.GetLocal();
+        Ipv4Address ipv4AddrServer = iaddrServer.GetLocal();
+        std::cout << "Client: " << ipv4AddrClient << " ----> "
+                  << "Server: " << ipv4AddrServer << "\n";
+    }
+}
 
 // node ID starting from a number to the end represents a server
 int getStartingServerID(std::string input) {
@@ -83,7 +144,7 @@ int main(int argc, char * argv[]) {
 
     std::string format("Orbis");
     std::string input("src/topology-read/examples/Orbis_toposample.txt");
-    double duration = 3.0;
+    double duration = 1.0;
     std::string data_rate("0.5Mbps");
 
     // Set up command line parameters used to control the experiment.
@@ -174,18 +235,16 @@ int main(int argc, char * argv[]) {
     int total_node_num = nodes.GetN();
     int half_server_num = (total_node_num - starting_server_id) / 2;
 
-    /*
-    std::cout << "Node id <--> Addr Mapping\n";
     for (i = 0; i < total_node_num; ++i) {
-        Ptr<Ipv4> ipv4Server = nodes.Get(i)->GetObject<Ipv4> ();
-        std::cout << i << ": " << ipv4Server->GetAddress(1,0).GetLocal() << "\n";
+        link_throughput.push_back(0);
     }
-    */
 
-    //std::cout << "Sender: ";
+    std::cout << "Total number of links: " << totlinks << std::endl;
+    std::cout << "Total number of servers: " << (total_node_num - starting_server_id) << std::endl;
+    std::cout << "Total number of switches: " << starting_server_id << std::endl;
+
     // first half are client nodes
     for ( i = starting_server_id; i < starting_server_id + half_server_num; ++i ){
-        //std::cout << "," << i;
         Ptr<Node> client_node = nodes.Get(i);
         Ptr<Node> server_node = nodes.Get(i + half_server_num);
         Ptr<Ipv4> ipv4Server = server_node->GetObject<Ipv4> ();
@@ -200,14 +259,15 @@ int main(int argc, char * argv[]) {
         apps.Start (Seconds (0.0));
         apps.Stop (Seconds (duration));
     }
-    //std::cout << "\nReceiver: ";
+
+    // showNodeAddrMapping(nodes, total_node_num);
+    // showSenderReceiverMapping(nodes, starting_server_id, half_server_num);
+
     // second half are server nodes
     NodeContainer serverNodes;
     for ( ; i < total_node_num; ++i) {
-        //std::cout << "," << i;
         serverNodes.Add (nodes.Get(i));
     }
-    //std::cout << "\n";
 
     PacketSinkHelper sink = PacketSinkHelper ("ns3::TcpSocketFactory",
         InetSocketAddress (Ipv4Address::GetAny (), port)
@@ -216,59 +276,95 @@ int main(int argc, char * argv[]) {
     sinkApps.Start (Seconds (0.0));
     sinkApps.Stop (Seconds (duration));
 
-    // 8. Install FlowMonitor on all nodes
+    /*
+    for (i = 0; i < totlinks; ++i) {
+        for (int j = 0; j < (int)nodes.Get(i)->GetNDevices(); ++j) {
+            std::cout << i << "--" << j << std::endl;
+        }
+    }
+    */
+
+    // Install FlowMonitor on all nodes
     FlowMonitorHelper flowmon;
     Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
     // monitor->SetAttribute("DelayBinWidth", DoubleValue(0.001));
     // monitor->SetAttribute("JitterBinWidth", DoubleValue(0.001));
     // monitor->SetAttribute("PacketSizeBinWidth", DoubleValue(20));
 
+    // For source trace
+    // Config::Connect ("/NodeList/*/DeviceList/*/Mac/MacRx", MakeCallback (&DevRxTrace));PhyTxEnd
+    // Config::Connect ("/NodeList/*/DeviceList/*/$ns3::PointToPointNetDevice/TxQueue/Dequeue", MakeCallback (&DevRxTrace));
+    Config::Connect ("/NodeList/*/DeviceList/*/$ns3::PointToPointNetDevice/PhyTxEnd", MakeCallback (&DevRxTrace));
+
     // ------------------------------------------------------------
     // -- Run the simulation
     // --------------------------------------------
+    time_t start_time = time(NULL);
+
     NS_LOG_INFO ("Run Simulation.");
     Simulator::Stop (Seconds (duration));
     Simulator::Run ();
     Simulator::Destroy ();
     NS_LOG_INFO ("Done.");
 
+    time_t end_time = time(NULL);
+
+    std::cout << "Simulation time: " << end_time - start_time << " seconds" << std::endl;
+
     // 10. Print per flow statistics
     monitor->CheckForLostPackets ();
     Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
+    /*
+    FlowMonitor::FlowProbeContainer fp_container = monitor->GetAllProbes();
+    for (unsigned int i = 0; i < fp_container.size(); ++i) {
+        FlowProbe::Stats temp_stats = fp_container[i]->GetStats();
+        for (std::map<FlowId, FlowProbe::FlowStats>::const_iterator j = temp_stats.begin (); j != temp_stats.end (); ++j) {
+            Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (j->first);
+            std::cout << "Flow " << j->first << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
+            std::cout << "  Bytes: " << j->second.bytes << "\n";
+        }
+    }
+    */
+
     FlowMonitor::FlowStatsContainer stats = monitor->GetFlowStats ();
     for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i){
-        // first 2 FlowIds are for ECHO apps, we don't want to display them
-        //
-        // Duration for throughput measurement is 9.0 seconds, since
-        //   StartTime of the OnOffApplication is at about "second 1"
-        // and
-        //   Simulator::Stops at "second 10".
-        //if (i->first > 2) {
-            Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
-            std::cout << "Flow " << i->first - 2 << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
-            std::cout << "  Tx Packets: " << i->second.txPackets << "\n";
-            std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";
-            std::cout << "  TxOffered:  " << i->second.txBytes * 8.0 / duration / 1000 / 1000  << " Mbps\n";
-            std::cout << "  Rx Packets: " << i->second.rxPackets << "\n";
-            std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";
-            //std::cout << "  Lost Packets: " << flow->second.lostPackets << endl;
-            //std::cout << "  Pkt Lost Ratio: "
-            //          << ((double)flow->second.txPackets-(double)flow->second.rxPackets)/(double)flow->second.txPackets
-            //          << endl;
-            std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / duration / 1000 / 1000  << " Mbps\n";
-            //std::cout << "  Mean{Delay}: " << (flow->second.delaySum.GetSeconds()/flow->second.rxPackets) << endl;
-            //std::cout << "  Mean{Jitter}: " << (flow->second.jitterSum.GetSeconds()/(flow->second.rxPackets)) << endl;
-        //}
+        Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
+        std::cout << "Flow " << i->first << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
+        std::cout << "  Tx Packets: " << i->second.txPackets << "\n";
+        std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";
+        std::cout << "  TxOffered:  " << i->second.txBytes * 8.0 / duration / 1000 / 1000  << " Mbps\n";
+        std::cout << "  Rx Packets: " << i->second.rxPackets << "\n";
+        std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";
+        //std::cout << "  Lost Packets: " << flow->second.lostPackets << endl;
+        //std::cout << "  Pkt Lost Ratio: "
+        //          << ((double)flow->second.txPackets-(double)flow->second.rxPackets)/(double)flow->second.txPackets
+        //          << endl;
+        std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / duration / 1000 / 1000  << " Mbps\n";
+        //std::cout << "  Mean{Delay}: " << (flow->second.delaySum.GetSeconds()/flow->second.rxPackets) << endl;
+        //std::cout << "  Mean{Jitter}: " << (flow->second.jitterSum.GetSeconds()/(flow->second.rxPackets)) << endl;
     }
 
+    // number of bytes received by the application
+    // less than the stats from flow monitor
+    // I think some headers or overhead from packet transmission
+    // are ignored here
     long int sum = 0;
     ApplicationContainer::Iterator it;
     for (it = sinkApps.Begin (); it != sinkApps.End (); ++it) {
         Ptr<PacketSink> sink1 = DynamicCast<PacketSink>((*it));
-        sum += sink1->GetTotalRx();
+        long int bytes_received = sink1->GetTotalRx();
+        std::cout << "Sink total Bytes received: " << bytes_received << "\n";
+        sum += bytes_received;
     }
     std::cout << "Total Bytes Received: " << sum << std::endl;
     std::cout << "Bandwidth: " << sum / duration << "byte/s" << std::endl;
+
+    /*
+    // throughput computed by source trace
+    for (int j = 0; j < (int)link_throughput.size(); ++j) {
+        std::cout << "Node " << j << ", throughput: " << link_throughput[j] << std::endl;
+    }
+    */
 
     delete[] ipic;
     delete[] ndc;
