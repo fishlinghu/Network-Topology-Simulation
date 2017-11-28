@@ -34,6 +34,10 @@
 #include "ns3/packet-sink.h"
 #include <list>
 #include <fstream>
+#include <vector>
+#include <algorithm>
+#include <cstdlib>
+#include <iostream>
 
 using namespace ns3;
 
@@ -41,6 +45,7 @@ NS_LOG_COMPONENT_DEFINE("Topology Read and Throughput Testing");
 
 static std::list < unsigned int > data;
 std::vector<int> link_throughput;
+std::vector<int> server_idx_list;
 
 int getNodeIdx (std::string context) {
     // example input:
@@ -126,15 +131,34 @@ int getStartingServerID(std::string input) {
     fs.close();
 
     // iterate through the map, nodes with degree = 1 are servers
+    server_idx_list.clear();
     int min_index = -1;
     for (std::map<int,int>::iterator it=degree_counter.begin(); it!=degree_counter.end(); ++it) {
         if (it->second == 1) {
+            server_idx_list.push_back(it->first);
             if (min_index == -1 || min_index > it->first) {
                 min_index = it->first;
             }
         }
     }
     return min_index;
+}
+
+template<class bidiiter>
+bidiiter random_unique(bidiiter begin, bidiiter end, size_t num_random) {
+    unsigned seed;
+    seed = (unsigned)time(NULL);
+    srand(seed);
+
+    size_t left = std::distance(begin, end);
+    while (num_random--) {
+        bidiiter r = begin;
+        std::advance(r, rand()%left);
+        std::swap(*begin, *r);
+        ++begin;
+        --left;
+    }
+    return begin;
 }
 
 // ----------------------------------------------------------------------
@@ -144,7 +168,7 @@ int main(int argc, char * argv[]) {
 
     std::string format("Orbis");
     std::string input("src/topology-read/examples/Orbis_toposample.txt");
-    double duration = 2.0;
+    double duration = 1.0;
     std::string data_rate("0.1Mbps");
 
     // Set up command line parameters used to control the experiment.
@@ -233,7 +257,6 @@ int main(int argc, char * argv[]) {
     // Set the amount of data to send in bytes.  Zero is unlimited.
     uint32_t maxBytes = 0;
     int total_node_num = nodes.GetN();
-    int half_server_num = (total_node_num - starting_server_id) / 2;
 
     for (i = 0; i < total_node_num; ++i) {
         link_throughput.push_back(0);
@@ -243,10 +266,16 @@ int main(int argc, char * argv[]) {
     std::cout << "Total number of servers: " << (total_node_num - starting_server_id) << std::endl;
     std::cout << "Total number of switches: " << starting_server_id << std::endl;
 
+    int half_server_num = server_idx_list.size()/2;
+    random_unique(server_idx_list.begin(), server_idx_list.end(), half_server_num);
+    // now the first half of the vector are the idx of clients
+    // the second half are the servers(receivers)
+
     // first half are client nodes
-    for ( i = starting_server_id; i < starting_server_id + half_server_num; ++i ){
-        Ptr<Node> client_node = nodes.Get(i);
-        Ptr<Node> server_node = nodes.Get(i + half_server_num);
+    for ( i = 0; i < half_server_num; ++i ){
+        std::cout << server_idx_list[i] << "--->" << server_idx_list[i+half_server_num] << std::endl;
+        Ptr<Node> client_node = nodes.Get(server_idx_list[i]);
+        Ptr<Node> server_node = nodes.Get(server_idx_list[i+half_server_num]);
         Ptr<Ipv4> ipv4Server = server_node->GetObject<Ipv4> ();
         Ipv4InterfaceAddress iaddrServer = ipv4Server->GetAddress(1,0);
         Ipv4Address ipv4AddrServer = iaddrServer.GetLocal();
@@ -265,8 +294,8 @@ int main(int argc, char * argv[]) {
 
     // second half are server nodes
     NodeContainer serverNodes;
-    for ( ; i < total_node_num; ++i) {
-        serverNodes.Add (nodes.Get(i));
+    for ( ; i < (int16_t)server_idx_list.size(); ++i) {
+        serverNodes.Add (nodes.Get(server_idx_list[i]));
     }
 
     PacketSinkHelper sink = PacketSinkHelper ("ns3::TcpSocketFactory",
@@ -285,8 +314,8 @@ int main(int argc, char * argv[]) {
     */
 
     // Install FlowMonitor on all nodes
-    FlowMonitorHelper flowmon;
-    Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
+    //FlowMonitorHelper flowmon;
+    //Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
     // monitor->SetAttribute("DelayBinWidth", DoubleValue(0.001));
     // monitor->SetAttribute("JitterBinWidth", DoubleValue(0.001));
     // monitor->SetAttribute("PacketSizeBinWidth", DoubleValue(20));
@@ -294,7 +323,7 @@ int main(int argc, char * argv[]) {
     // For source trace
     // Config::Connect ("/NodeList/*/DeviceList/*/Mac/MacRx", MakeCallback (&DevRxTrace));PhyTxEnd
     // Config::Connect ("/NodeList/*/DeviceList/*/$ns3::PointToPointNetDevice/TxQueue/Dequeue", MakeCallback (&DevRxTrace));
-    Config::Connect ("/NodeList/*/DeviceList/*/$ns3::PointToPointNetDevice/PhyTxEnd", MakeCallback (&DevRxTrace));
+    //Config::Connect ("/NodeList/*/DeviceList/*/$ns3::PointToPointNetDevice/PhyTxEnd", MakeCallback (&DevRxTrace));
 
     // ------------------------------------------------------------
     // -- Run the simulation
@@ -312,8 +341,8 @@ int main(int argc, char * argv[]) {
     std::cout << "Simulation time: " << end_time - start_time << " seconds" << std::endl;
 
     // 10. Print per flow statistics
-    monitor->CheckForLostPackets ();
-    Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
+    //monitor->CheckForLostPackets ();
+    //Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
     /*
     FlowMonitor::FlowProbeContainer fp_container = monitor->GetAllProbes();
     for (unsigned int i = 0; i < fp_container.size(); ++i) {
