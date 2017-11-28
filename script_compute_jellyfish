@@ -1,0 +1,5 @@
+for f in scratch/jellyfish_211_*
+do
+	eval './waf --run "scratch/BisectionBW --input=$f"'
+	echo ""
+done

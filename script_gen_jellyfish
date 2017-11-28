@@ -1,0 +1,11 @@
+let i=1
+for k in {4..20}
+do
+let N=5*k*k/4
+	for ((r=4; r < $k; r=r+2))
+	{
+		python3 generate_jellyfish_topology.py $N $k $r $i
+		# echo $N
+	}
+done
+exit 0

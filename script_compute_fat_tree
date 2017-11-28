@@ -1,0 +1,4 @@
+for f in scratch/fat_tree*
+do
+	eval './waf --run "scratch/BisectionBW --input=$f"'
+done

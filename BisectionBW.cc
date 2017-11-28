@@ -144,8 +144,8 @@ int main(int argc, char * argv[]) {
 
     std::string format("Orbis");
     std::string input("src/topology-read/examples/Orbis_toposample.txt");
-    double duration = 1.0;
-    std::string data_rate("0.5Mbps");
+    double duration = 2.0;
+    std::string data_rate("0.1Mbps");
 
     // Set up command line parameters used to control the experiment.
     CommandLine cmd;
@@ -326,6 +326,7 @@ int main(int argc, char * argv[]) {
     }
     */
 
+    /*
     FlowMonitor::FlowStatsContainer stats = monitor->GetFlowStats ();
     for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i){
         Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
@@ -343,21 +344,23 @@ int main(int argc, char * argv[]) {
         //std::cout << "  Mean{Delay}: " << (flow->second.delaySum.GetSeconds()/flow->second.rxPackets) << endl;
         //std::cout << "  Mean{Jitter}: " << (flow->second.jitterSum.GetSeconds()/(flow->second.rxPackets)) << endl;
     }
+    */
 
     // number of bytes received by the application
     // less than the stats from flow monitor
     // I think some headers or overhead from packet transmission
     // are ignored here
+
     long int sum = 0;
     ApplicationContainer::Iterator it;
     for (it = sinkApps.Begin (); it != sinkApps.End (); ++it) {
         Ptr<PacketSink> sink1 = DynamicCast<PacketSink>((*it));
         long int bytes_received = sink1->GetTotalRx();
-        std::cout << "Sink total Bytes received: " << bytes_received << "\n";
+        // std::cout << "Sink total Bytes received: " << bytes_received << "\n";
         sum += bytes_received;
     }
     std::cout << "Total Bytes Received: " << sum << std::endl;
-    std::cout << "Bandwidth: " << sum / duration << "byte/s" << std::endl;
+    std::cout << "Bandwidth: " << sum / duration / 1000000 << "Mbps" << std::endl;
 
     /*
     // throughput computed by source trace
