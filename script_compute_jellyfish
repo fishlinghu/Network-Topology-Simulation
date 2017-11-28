@@ -1,5 +1,14 @@
-for f in scratch/jellyfish_211_*
+for n in 31 45 61 80 101 125 151 180 211 245 281 320 361 405 451 500
 do
-	eval './waf --run "scratch/BisectionBW --input=$f"'
-	echo ""
+	a='scratch/jellyfish_'
+	b='_*'
+	for f in $a$n$b
+	do
+		c='new_jellyfish_result_n'
+		d='.txt'
+		eval './waf --run "scratch/BisectionBW --input=$f" > $c$n$d'
+		#echo "$f"
+		echo ""
+	done
 done
+exit 0
