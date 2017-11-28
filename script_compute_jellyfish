@@ -6,9 +6,10 @@ do
 	do
 		c='new_jellyfish_result_n'
 		d='.txt'
-		eval './waf --run "scratch/BisectionBW --input=$f" > $c$n$d'
+		eval './waf --run "scratch/BisectionBW --input=$f" >> $c$n$d'
 		#echo "$f"
-		echo ""
+		echo "" >> $c$n$d
 	done
+	echo "n=$n done at $(date)"
 done
 exit 0
