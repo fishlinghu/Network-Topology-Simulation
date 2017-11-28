@@ -1,4 +1,6 @@
 for f in scratch/fat_tree*
 do
-	eval './waf --run "scratch/BisectionBW --input=$f"'
+	eval './waf --run "scratch/BisectionBW --input=$f" >> new_fat_tree_result.txt'
+	echo "" >> new_fat_tree_result.txt
+	echo "$f done at $(date)"
 done

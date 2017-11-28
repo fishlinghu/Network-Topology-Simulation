@@ -273,7 +273,7 @@ int main(int argc, char * argv[]) {
 
     // first half are client nodes
     for ( i = 0; i < half_server_num; ++i ){
-        std::cout << server_idx_list[i] << "--->" << server_idx_list[i+half_server_num] << std::endl;
+        // std::cout << server_idx_list[i] << "--->" << server_idx_list[i+half_server_num] << std::endl;
         Ptr<Node> client_node = nodes.Get(server_idx_list[i]);
         Ptr<Node> server_node = nodes.Get(server_idx_list[i+half_server_num]);
         Ptr<Ipv4> ipv4Server = server_node->GetObject<Ipv4> ();
