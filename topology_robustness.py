@@ -88,9 +88,11 @@ def output_edges(filename, G, reachable_servers):
     # print the current edges in the graph and the reachable servers in the last line
     with open(filename, 'w') as output:
         edges = G.edges()
+        # first line is all available servers
+        output.write(' '.join(str(server) for server in reachable_servers) + '\n')
+        # the rest are edges list
         for edge in edges:
             output.write(str(edge[0]) + ' ' + str(edge[1]) + '\n')
-        output.write(' '.join(str(server) for server in reachable_servers) + '\n')
     output.close()
 
 
@@ -146,6 +148,3 @@ G2.add_edges_from(edges)
 
 random_failures(G, N, num)
 targeted_attacks(G2, N, num)
-
-
-
