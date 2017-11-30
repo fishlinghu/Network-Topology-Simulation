@@ -1,8 +1,31 @@
 # python3
 import sys
 import os
+import matplotlib.pyplot as plt
+
+def robustness_plot(switches, servers, title, name):
+    # switches: fraction of switches removed
+    # servers: fraction of servers reachable in largest component
+    plt.figure()
+    plt.plot(switches, servers,'b-', marker='o')
+    plt.title(title)
+    plt.xlabel("fraction of switches removed")
+    plt.ylabel("Bisection Bandwidth (Mbps)")
+    plt.savefig(name)
+
+def readResult():
+    bw = 0
+    with open("result.txt", 'r') as simulation_result:
+        for line in simulation_result:
+            bw = float(line)
+
+    os.remove("result.txt")
+    return bw
 
 def parseAndExecute(filename_prefix, N):
+    portion_switches_removed = [] # fraction of switches removed at each step
+    bw_list = []
+
     for num_switch_removed in range(1, N+1, 1):
     # for num_switch_removed in range(8, 9, 1):
         filename = filename_prefix + str(num_switch_removed) + ".txt"
@@ -49,6 +72,13 @@ def parseAndExecute(filename_prefix, N):
         # print(command)
         os.remove("edge_list")
         os.remove("server_file")
+
+        portion_switches_removed.append(num_switch_removed / float(N))
+        bw_list.append(readResult())
+
+    # plot the robustness:
+    name = filename_prefix + ".png"
+    robustness_plot(portion_switches_removed, bw_list, filename_prefix, name)
 
 def main():
     # usage: $script.py N num_of_servers
