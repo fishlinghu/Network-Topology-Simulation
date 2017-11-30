@@ -91,11 +91,11 @@ def main():
     num_of_servers = int(sys.argv[2])
 
     # compute targeting attack
-    filename_prefix = "ta_" + str(N) + "_" + str(num_of_servers) + "_"
+    filename_prefix = "reduced_topo/ta_" + str(N) + "_" + str(num_of_servers) + "_"
     parseAndExecute(filename_prefix, N)
 
     # compute random attack
-    filename_prefix = "rf_" + str(N) + "_" + str(num_of_servers) + "_"
+    filename_prefix = "reduced_topo/rf_" + str(N) + "_" + str(num_of_servers) + "_"
     parseAndExecute(filename_prefix, N)
 
 if __name__ == "__main__":

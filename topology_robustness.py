@@ -5,6 +5,7 @@ import operator
 import scipy.stats as stats
 from heapq import nlargest
 import sys
+import os
 import random
 
 
@@ -32,7 +33,7 @@ def random_failures(G, N, num):
         portion_switches_removed.append(len(switch_removed)/(N * 1.0))
         portion_server_reachable.append(len(reachable_servers)/(num * 1.0))
         # output the edges and reachable servers after a switch is removed:
-        filename = "rf_" + str(N) + "_" + str(num) + "_" + str(len(switch_removed)) + ".txt"
+        filename = "reduced_topo/rf_" + str(N) + "_" + str(num) + "_" + str(len(switch_removed)) + ".txt"
         output_edges(filename, G, reachable_servers)
 
     # plot the robustness:
@@ -55,7 +56,7 @@ def targeted_attacks(G, N, num):
         portion_switches_removed.append((s + 1)/(N * 1.0))
         portion_server_reachable.append(len(reachable_servers)/(num * 1.0))
         # output edges and reachable servers:
-        filename = "ta_" + str(N) + "_" + str(num) + "_" + str(s + 1) + ".txt"
+        filename = "reduced_topo/ta_" + str(N) + "_" + str(num) + "_" + str(s + 1) + ".txt"
         output_edges(filename, G, reachable_servers)
 
     # plot the robustness:
@@ -145,6 +146,8 @@ G2 = nx.Graph()
 G.add_edges_from(edges)
 G2.add_edges_from(edges)
 
+if not os.path.isdir('reduced_topo'):
+    os.mkdir('reduced_topo')
 
 random_failures(G, N, num)
 targeted_attacks(G2, N, num)
