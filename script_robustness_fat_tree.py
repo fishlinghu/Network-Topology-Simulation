@@ -2,6 +2,53 @@
 import sys
 import os
 
+def parseAndExecute(filename_prefix, N):
+    for num_switch_removed in range(1, N+1, 1):
+    # for num_switch_removed in range(8, 9, 1):
+        filename = filename_prefix + str(num_switch_removed) + ".txt"
+        orig_server_idx_map = {}
+        new_server_idx_map = {}
+        old_new_idx_map = {}
+        new_idx = 0
+
+        with open(filename, 'r') as input_file, open("edge_list", 'w') as output_file:
+            first_line_flag = True
+            for line in input_file:
+                if first_line_flag:
+                    # first line is the list of server ids
+                    for server_idx in line.split(' '):
+                        orig_server_idx_map[int(server_idx)] = -1
+                    first_line_flag = False
+                else:
+                    for old_idx in line.split(' '):
+                        if int(old_idx) not in old_new_idx_map:
+                            old_new_idx_map[int(old_idx)] = new_idx
+                            new_idx = new_idx + 1
+                        if int(old_idx) in orig_server_idx_map:
+                            new_server_idx = old_new_idx_map[int(old_idx)]
+                            new_server_idx_map[new_server_idx] = -1
+                    output_file.write(line)
+
+        input_file.close()
+        output_file.close()
+
+        #print(orig_server_idx_map)
+        #print(new_server_idx_map)
+
+        with open("server_file", 'w') as server_file:
+            for key, _ in new_server_idx_map.items():
+                server_file.write(str(key) + ' ')
+
+        server_file.close()
+
+        # complete the mapping
+        # print(orig_server_idx_list)
+
+        command = "./waf --run \"scratch/BisectionBW_robustness --input=edge_list --servers=server_file\""
+        os.system(command)
+        # print(command)
+        os.remove("edge_list")
+        os.remove("server_file")
 
 def main():
     # usage: $script.py N num_of_servers
@@ -15,38 +62,11 @@ def main():
 
     # compute targeting attack
     filename_prefix = "ta_" + str(N) + "_" + str(num_of_servers) + "_"
-    for num_switch_removed in range(N, 0, -1):
-        filename = filename_prefix + str(num_switch_removed) + ".txt"
+    parseAndExecute(filename_prefix, N)
 
-        with open(filename, 'r') as input_file, open("edge_list", 'w') as output_file:
-            first_line_flag = True
-            for line in input_file:
-                if first_line_flag:
-                    # first line is the list of server ids
-                    with open("server_file", 'w') as server_file:
-                        server_file.write(line)
-                    server_file.close()
-                    first_line_flag = False
-                else:
-                    output_file.write(line)
-        input_file.close()
-        output_file.close()
-
-        server_file = ""
-        command = "./waf --run \"scratch/BisectionBW --input=edge_list --servers=server_file\""
-        # os.system(command)
-        # print(command)
-        os.remove("edge_list")
-        os.remove("server_file")
-
-    # compute randomly attack
-    """
+    # compute random attack
     filename_prefix = "rf_" + str(N) + "_" + str(num_of_servers) + "_"
-    for num_switch_remained in range(N, 0, -1):
-        filename = filename_prefix + str(num_switch_remained) + ".txt"
-        command = "./waf --run \"scratch/BisectionBW --input=scratch/" + filename + "\""
-        os.system(command)
-    """
+    parseAndExecute(filename_prefix, N)
 
 if __name__ == "__main__":
     main()

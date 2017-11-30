@@ -112,9 +112,8 @@ void findAllServers(std::string server_file) {
     int server_idx;
     server_idx_list.clear();
     std::ifstream fs;
-    fs.open(input, std::ifstream::in);
+    fs.open(server_file, std::ifstream::in);
     while (fs >> server_idx) {
-        std::cout << server_idx << std::endl;
         server_idx_list.push_back(server_idx);
     }
     fs.close();
@@ -234,7 +233,7 @@ int main(int argc, char * argv[]) {
     uint16_t port = 9;  // well-known echo port number
     // Set the amount of data to send in bytes.  Zero is unlimited.
     uint32_t maxBytes = 0;
-    int total_node_num = nodes.GetN();
+    // int total_node_num = nodes.GetN();
 
     /*
     for (i = 0; i < total_node_num; ++i) {
@@ -282,7 +281,10 @@ int main(int argc, char * argv[]) {
     PacketSinkHelper sink = PacketSinkHelper ("ns3::TcpSocketFactory",
         InetSocketAddress (Ipv4Address::GetAny (), port)
     );
-    ApplicationContainer sinkApps = sink.Install (serverNodes);
+
+    ApplicationContainer sinkApps;
+
+    sinkApps = sink.Install (serverNodes);
     sinkApps.Start (Seconds (0.0));
     sinkApps.Stop (Seconds (duration));
 
