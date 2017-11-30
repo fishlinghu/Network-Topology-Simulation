@@ -165,6 +165,10 @@ bidiiter random_unique(bidiiter begin, bidiiter end, size_t num_random) {
 // -- main
 // ----------------------------------------------
 int main(int argc, char * argv[]) {
+    std::ofstream myfile;
+    myfile.open ("result.txt");
+    myfile << 0;
+    myfile.close();
 
     std::string format("Orbis");
     std::string input("src/topology-read/examples/Orbis_toposample.txt");
@@ -390,6 +394,10 @@ int main(int argc, char * argv[]) {
     }
     std::cout << "Total Bytes Received: " << sum << std::endl;
     std::cout << "Bandwidth: " << sum / duration / 1000000 << "Mbps" << std::endl;
+
+    myfile.open ("result.txt");
+    myfile << sum / duration / 1000000;
+    myfile.close();
 
     /*
     // throughput computed by source trace
