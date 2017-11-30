@@ -1,4 +1,5 @@
 # python3
+import time
 import sys
 import os
 import matplotlib.pyplot as plt
@@ -89,14 +90,19 @@ def main():
 
     N = int(sys.argv[1])
     num_of_servers = int(sys.argv[2])
-
+    
+    start_time = time.time()
     # compute targeting attack
     filename_prefix = "reduced_topo/ta_" + str(N) + "_" + str(num_of_servers) + "_"
     parseAndExecute(filename_prefix, N)
+    
+    print("Take " + str(time.time()-start_time) + " secs for TA")
 
     # compute random attack
     filename_prefix = "reduced_topo/rf_" + str(N) + "_" + str(num_of_servers) + "_"
     parseAndExecute(filename_prefix, N)
+    
+    print("Take " + str(time.time()-start_time) + " secs for both experiments")
 
 if __name__ == "__main__":
     main()

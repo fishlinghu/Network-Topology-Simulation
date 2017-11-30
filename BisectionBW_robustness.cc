@@ -251,7 +251,7 @@ int main(int argc, char * argv[]) {
 
     int half_server_num = server_idx_list.size()/2;
     // shuffle the server idx sequence
-    random_unique(server_idx_list.begin(), server_idx_list.end(), half_server_num);
+    // random_unique(server_idx_list.begin(), server_idx_list.end(), half_server_num);
     // now the first half of the vector are the idx of clients
     // the second half are the servers(receivers)
 
