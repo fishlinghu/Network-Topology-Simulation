@@ -76,7 +76,8 @@ def parseAndExecute(filename_prefix, N, figure_title):
 
         portion_switches_removed.append(num_switch_removed / float(N))
         bw_list.append(readResult())
-    
+
+    bw_list[0] = bw_list[1]
     orig = bw_list[0]
     prev = bw_list[0]
     for i in range(len(bw_list)):
@@ -98,20 +99,20 @@ def main():
 
     N = int(sys.argv[1])
     num_of_servers = int(sys.argv[2])
-    
+
     start_time = time.time()
     # compute targeting attack
     filename_prefix = "reduced_topo/ta_" + str(N) + "_" + str(num_of_servers) + "_"
     title = "targeted attacks for " + str(N) + " switches and " + str(num_of_servers) + " servers"
     parseAndExecute(filename_prefix, N, title)
-    
+
     print("Take " + str(time.time()-start_time) + " secs for TA")
 
     # compute random attack
     filename_prefix = "reduced_topo/rf_" + str(N) + "_" + str(num_of_servers) + "_"
     title = "random attacks for " + str(N) + " switches and " + str(num_of_servers) + " servers"
     parseAndExecute(filename_prefix, N, title)
-    
+
     print("Take " + str(time.time()-start_time) + " secs for both experiments")
 
 if __name__ == "__main__":
