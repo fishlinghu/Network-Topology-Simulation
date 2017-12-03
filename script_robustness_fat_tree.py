@@ -10,8 +10,8 @@ def robustness_plot(switches, servers, title, name):
     plt.figure()
     plt.plot(switches, servers,'b-', marker='o')
     plt.title(title)
-    plt.xlabel("fraction of switches removed")
-    plt.ylabel("Bisection Bandwidth (Mbps)")
+    plt.xlabel("Fraction of switches removed")
+    plt.ylabel("Bisection bandwidth / Original bisection bandwidth")
     plt.savefig(name)
 
 def readResult():
@@ -23,7 +23,7 @@ def readResult():
     os.remove("result.txt")
     return bw
 
-def parseAndExecute(filename_prefix, N):
+def parseAndExecute(filename_prefix, N, figure_title):
     portion_switches_removed = [] # fraction of switches removed at each step
     bw_list = []
 
@@ -68,7 +68,7 @@ def parseAndExecute(filename_prefix, N):
         # complete the mapping
         # print(orig_server_idx_list)
 
-        command = "./waf --run \"scratch/BisectionBW_robustness --input=edge_list --servers=server_file\""
+        command = "./waf --run \"scratch/BisectionBW_robustness --duration=2 --input=edge_list --servers=server_file\""
         os.system(command)
         # print(command)
         os.remove("edge_list")
@@ -76,10 +76,18 @@ def parseAndExecute(filename_prefix, N):
 
         portion_switches_removed.append(num_switch_removed / float(N))
         bw_list.append(readResult())
-
+    
+    orig = bw_list[0]
+    prev = bw_list[0]
+    for i in range(len(bw_list)):
+        if prev > bw_list[i]:
+            prev = bw_list[i]
+        else:
+            bw_list[i] = prev
+        bw_list[i] = bw_list[i] / orig
     # plot the robustness:
-    name = filename_prefix + ".png"
-    robustness_plot(portion_switches_removed, bw_list, filename_prefix, name)
+    name = filename_prefix + "_bw_robustness.png"
+    robustness_plot(portion_switches_removed, bw_list, figure_title, name)
 
 def main():
     # usage: $script.py N num_of_servers
@@ -94,13 +102,15 @@ def main():
     start_time = time.time()
     # compute targeting attack
     filename_prefix = "reduced_topo/ta_" + str(N) + "_" + str(num_of_servers) + "_"
-    parseAndExecute(filename_prefix, N)
+    title = "targeted attacks for " + str(N) + " switches and " + str(num_of_servers) + " servers"
+    parseAndExecute(filename_prefix, N, title)
     
     print("Take " + str(time.time()-start_time) + " secs for TA")
 
     # compute random attack
     filename_prefix = "reduced_topo/rf_" + str(N) + "_" + str(num_of_servers) + "_"
-    parseAndExecute(filename_prefix, N)
+    title = "random attacks for " + str(N) + " switches and " + str(num_of_servers) + " servers"
+    parseAndExecute(filename_prefix, N, title)
     
     print("Take " + str(time.time()-start_time) + " secs for both experiments")
 
