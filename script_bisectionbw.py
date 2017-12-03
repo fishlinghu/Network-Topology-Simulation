@@ -3,27 +3,41 @@ import sys
 import os
 import matplotlib.pyplot as plt
 import networkx as nx
+import time
 
-def plotServerBW(num_servers, bw, name, marker, label, title):
+def plotServerBW(num_servers, bw, name, marker, label, title, color, filled_marker):
     # switches: fraction of switches removed
     # servers: fraction of servers reachable in largest component
     plt.figure(1)
-    plt.plot(num_servers, bw,'b-', marker=marker, label=label)
+    if filled_marker:
+        plt.plot(num_servers, bw, color + '-', marker=marker, label=label)
+    else:
+        plt.plot(num_servers, bw, color + '-', marker=marker, label=label, mfc='none')
+    # Shrink current axis by 25% for legend box
+    plt.subplots_adjust(right=0.75)
+    plt.legend(bbox_to_anchor=(1.04,1), loc="upper left")
+
     plt.title(title)
     plt.xlabel("Number of servers supported")
     plt.ylabel("Bisection Bandwidth (Mbps)")
-    plt.legend()
     plt.savefig(name)
 
-def plotServerAvgDist(num_servers, avg_dist, name, marker, label, title):
+def plotServerAvgDist(num_servers, avg_dist, name, marker, label, title, color, filled_marker):
     # switches: fraction of switches removed
     # servers: fraction of servers reachable in largest component
     plt.figure(2)
-    plt.plot(num_servers, avg_dist,'b-', marker=marker, label=label)
+    if filled_marker:
+        plt.plot(num_servers, avg_dist, color + '-', marker=marker, label=label)
+    else:
+        plt.plot(num_servers, avg_dist, color + '-', marker=marker, label=label, mfc='none')
+
+    # Shrink current axis by 25% for legend box
+    plt.subplots_adjust(right=0.75)
+    plt.legend(bbox_to_anchor=(1.04,1), loc="upper left")
+
     plt.title(title)
     plt.xlabel("Number of servers supported")
     plt.ylabel("Number of hops")
-    plt.legend()
     plt.savefig(name)
 
 def readFileCreateGraph(filename):
@@ -127,14 +141,24 @@ def main():
         print("usage: $python3 script.py k i")
         return
 
+    color = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+    shape = ['s', 'o', '^', '8', 'v']
+    counter = 0
     # draw many lines with different k
-    for k in range(7, 10, 1):
+
+    for k in range(11, 16, 1):
         i = int(sys.argv[2])
         N = int(5 * pow(k,2) / 4)
 
+        print("")
+        print("++++++ k = " + str(k) + " ++++++")
+        start = time.time()
         # start the simulation
         fat_tree_simulation_result = simulateFatTree(k, i)
+        mid = time.time()
+        print("  - Fat tree simulation time: " + str(mid-start) + " secs")
         jellyfish_simulation_result = simulateJellyfish(k, i)
+        print("  - Jellyfish simulation time: " + str(time.time()-mid) + " secs")
 
         # get the result of average distance
         fat_tree_avg_dist = fat_tree_simulation_result[0]
@@ -154,38 +178,47 @@ def main():
             jellyfish_num_servers,
             jellyfish_bw,
             "ALL_bw.png",
-            'o',
-            'jellyfish',
-            'Maximum bisection bandwidth supported by different topologies'
+            shape[counter],
+            'JF-N='+str(N),
+            'Maximum bisection bandwidth supported by different topologies',
+            color[counter],
+            True
         )
         plotServerBW(
             fat_tree_num_servers,
             fat_tree_bw,
             "ALL_bw.png",
-            's',
-            'fat tree',
-            'Maximum bisection bandwidth supported by different topologies'
+            shape[counter],
+            'FT-N='+str(N),
+            'Maximum bisection bandwidth supported by different topologies',
+            color[counter],
+            False
         )
 
         plotServerAvgDist(
             jellyfish_num_servers,
             jellyfish_avg_dist,
             "ALL_avg_dist.png",
-            'o',
-            'jellyfish',
-            'Average distance between servers'
+            shape[counter],
+            'JF-N='+str(N),
+            'Average distance between servers',
+            color[counter],
+            True
         )
         plotServerAvgDist(
             fat_tree_num_servers,
             fat_tree_avg_dist,
             "ALL_avg_dist.png",
-            's',
-            'fat tree',
-            'Average distance between servers'
+            shape[counter],
+            'FT-N='+str(N),
+            'Average distance between servers',
+            color[counter],
+            False
         )
+        counter = counter + 1
 
     ######################################################
-
+    """
     k = int(sys.argv[1])
     i = int(sys.argv[2])
     N = int(5 * pow(k,2) / 4)
@@ -219,7 +252,8 @@ def main():
         str(N) + "_" + str(k) + "_bw.png",
         'o',
         'jellyfish',
-        'Maximum bisection bandwidth supported by different topologies'
+        'Maximum bisection bandwidth supported by different topologies',
+        color[0]
     )
     plotServerBW(
         fat_tree_num_servers,
@@ -227,7 +261,8 @@ def main():
         str(N) + "_" + str(k) + "_bw.png",
         's',
         'fat tree',
-        'Maximum bisection bandwidth supported by different topologies'
+        'Maximum bisection bandwidth supported by different topologies',
+        color[0]
     )
 
     plotServerAvgDist(
@@ -236,7 +271,8 @@ def main():
         str(N) + "_" + str(k) + "_avg_dist.png",
         'o',
         'jellyfish',
-        'Average distance between servers'
+        'Average distance between servers',
+        color[0]
     )
     plotServerAvgDist(
         fat_tree_num_servers,
@@ -244,8 +280,10 @@ def main():
         str(N) + "_" + str(k) + "_avg_dist.png",
         's',
         'fat tree',
-        'Average distance between servers'
+        'Average distance between servers',
+        color[0]
     )
+    """
 
 if __name__ == "__main__":
     main()
